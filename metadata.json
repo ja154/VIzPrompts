@@ -1,0 +1,6 @@
+{
+  "name": "Visionary Prompts: AI Video to Prompt Generator",
+  "description": "Instantly convert any video into a hyper-detailed text-to-video prompt with our AI-powered generator. Using Google's Gemini AI, Visionary Prompts analyzes video frames to capture style, lighting, and composition, creating production-ready prompts for generative AI art and video models.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
