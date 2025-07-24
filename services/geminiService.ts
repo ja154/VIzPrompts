@@ -1,18 +1,22 @@
-
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
-// By initializing the AI client on-demand (lazily) instead of at the top level,
-// we prevent the application from crashing if the `process.env.API_KEY` is not
-// immediately available during the initial script load. The client is created
-// only when an API call is about to be made.
-let ai: GoogleGenAI | null = null;
+// Use a local variable to hold the instance.
+let ai: GoogleGenAI;
 
+/**
+ * Lazily initializes and returns the GoogleGenAI client instance.
+ * This ensures the API key is read from the environment at the time of the first API call,
+ * which can help in environments where `process.env` is populated after initial module load.
+ * @returns The initialized GoogleGenAI instance.
+ */
 const getAiClient = (): GoogleGenAI => {
     if (!ai) {
-        // As per the project guidelines, we assume `process.env.API_KEY` is provided
-        // by the execution environment. The explicit check that previously caused
-        // a crash has been removed in favor of this lazy-initialization pattern.
-        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const API_KEY = process.env.API_KEY;
+        if (!API_KEY) {
+            // This error is more likely to be thrown if the key is truly missing at runtime.
+            throw new Error("API_KEY environment variable not set at the time of API call.");
+        }
+        ai = new GoogleGenAI({ apiKey: API_KEY });
     }
     return ai;
 };
@@ -57,7 +61,6 @@ const parseDataUrl = (dataUrl: string) => {
  * @returns A promise that resolves to a stringified JSON object.
  */
 export const structurePrompt = async (promptToStructure: string, masterPrompt: string): Promise<string> => {
-    const client = getAiClient();
     const structuringPrompt = `
       Based on the following detailed text-to-video prompt, convert it into a structured JSON object. 
       The JSON should logically break down the prompt into its core components.
@@ -67,7 +70,7 @@ export const structurePrompt = async (promptToStructure: string, masterPrompt: s
     `;
 
     try {
-        const structuringResponse = await client.models.generateContent({
+        const structuringResponse = await getAiClient().models.generateContent({
             model: 'gemini-2.5-flash',
             contents: structuringPrompt,
             config: {
@@ -119,7 +122,6 @@ export const generatePromptFromFrames = async (
     onProgress: (message: string) => void,
     masterPrompt: string
 ): Promise<PromptGenerationResult> => {
-    const client = getAiClient();
     if (frameDataUrls.length === 0) {
         throw new Error("No frames provided for analysis.");
     }
@@ -139,7 +141,7 @@ Return a single JSON object which is an array of analysis objects. Each analysis
 Output only the raw JSON. Do not include any conversational text or markdown formatting.`
         };
 
-        const analysisResponse: GenerateContentResponse = await client.models.generateContent({
+        const analysisResponse: GenerateContentResponse = await getAiClient().models.generateContent({
             model: 'gemini-2.5-flash',
             contents: { parts: [analysisTextPart, ...imagePartsForAnalysis] },
             config: {
@@ -175,7 +177,7 @@ Output only the raw JSON. Do not include any conversational text or markdown for
           Output only the synthesized text-to-video prompt, formatted as a comma-separated list of descriptive phrases. Do not include any conversational text or markdown formatting.
         `;
     
-        const synthesisResponse = await client.models.generateContent({
+        const synthesisResponse = await getAiClient().models.generateContent({
             model: 'gemini-2.5-flash',
             contents: synthesisPrompt,
             config: {
@@ -214,7 +216,6 @@ Output only the raw JSON. Do not include any conversational text or markdown for
 
 
 export const refinePrompt = async (currentPrompt: string, userInstruction: string, masterPrompt: string): Promise<string> => {
-    const client = getAiClient();
     const content = `
 Refine the following text-to-video prompt based on my instruction.
 
@@ -226,7 +227,7 @@ INSTRUCTION:
     `;
 
     try {
-        const response: GenerateContentResponse = await client.models.generateContent({
+        const response: GenerateContentResponse = await getAiClient().models.generateContent({
             model: 'gemini-2.5-flash',
             contents: content,
             config: {
