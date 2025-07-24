@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnalysisState, PromptHistoryItem, User } from './types.ts';
 import { extractFramesFromVideo, imageToDataUrl, getVideoMetadata } from './utils/video.ts';
@@ -174,22 +175,19 @@ const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: Pro
             setProgressMessage('Extracting frames...');
             frameDataUrls = await extractFramesFromVideo(file, 5, (prog) => setProgress(prog * 0.3));
         } else if (file.type.startsWith('image/')) {
-            // The dataUrl was already created for the preview and stored in videoUrl
             const dataUrl = videoUrl;
             setProgressMessage('Processing image...');
             frameDataUrls = [dataUrl];
-            setProgress(30); // Image processing is faster
+            setProgress(30);
         }
         
         if (frameDataUrls.length === 0) throw new Error("Could not extract frames or process the media.");
         firstFrame = frameDataUrls[0];
         
-        const { prompt, analyses, jsonPrompt } = await generatePromptFromFrames(frameDataUrls, (msg) => {
-            setProgressMessage(msg);
-            if (msg.includes('Step 1/3')) setProgress(35);
-            if (msg.includes('Step 2/3')) setProgress(65);
-            if (msg.includes('Step 3/3')) setProgress(90);
-        }, masterPrompt);
+        setProgressMessage('Analyzing with AI...');
+        setProgress(50);
+
+        const { prompt, analyses, jsonPrompt } = await generatePromptFromFrames(frameDataUrls, masterPrompt);
         
         setGeneratedPrompt(prompt);
         setOriginalPrompt(prompt);
