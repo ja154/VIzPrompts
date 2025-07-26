@@ -472,7 +472,7 @@ const Features = () => (
           <GlowCard className="bg-bg-secondary-light dark:bg-bg-secondary-dark rounded-2xl p-1 shadow-lg border border-border-primary-light dark:border-border-primary-dark">
             <div className="rounded-xl p-6 h-full">
               <div className="w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-4"><i className="fas fa-scroll text-purple-600 dark:text-purple-400 text-xl"></i></div>
-              <h3 className="text-xl font-bold mb-2">Get Your Prompt</h3>
+              <h3 className="text-xl font-bold mb-2">Get your Prompt</h3>
               <p className="text-text-secondary-light dark:text-text-secondary-dark">Receive a detailed, production-ready prompt optimized for text-to-video AI models, ready to be refined.</p>
             </div>
           </GlowCard>
