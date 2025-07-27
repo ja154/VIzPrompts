@@ -120,18 +120,24 @@
       }
 
       /* 
-        Body background override and stacking context creation.
-        By making the body a stacking context with `isolation: isolate`, we ensure 
-        that the `PatternBackground` component (with its negative z-index) is
-        contained within the body. This prevents it from rendering behind the
-        `html` element on certain mobile browsers, fixing the disappearing
-        background issue. `position: relative` is added to support this.
+        Body background should be transparent to allow the html background to show through,
+        behind our PatternBackground component.
       */
       body {
           background-color: transparent !important;
           background-image: none !important;
-          position: relative;
-          isolation: isolate;
+      }
+
+      /*
+        Create a new stacking context on the #root element.
+        This ensures that the `PatternBackground` component (with its negative z-index)
+        is contained within our app's root. This is a more reliable method for
+        ensuring the background is visible on all browsers, especially mobile, as
+        it avoids modifying the <body> element's stacking behavior directly, which was causing issues.
+      */
+      #root {
+        position: relative;
+        isolation: isolate;
       }
       
       .dark {
