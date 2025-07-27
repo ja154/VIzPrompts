@@ -107,83 +107,31 @@
         transition: background-color 0.3s ease, color 0.3s ease;
       }
 
-      /* New Retro Background Styles */
-      #retro-background {
-        position: fixed;
-        inset: 0;
-        z-index: -10;
-        overflow: hidden;
-        /* Background properties are moved to the ::before pseudo-element below for mobile compatibility. */
+      /* 
+        Fallback background for the page.
+        This ensures there's always a themed background color, especially on mobile
+        where the pattern component might not render correctly otherwise.
+      */
+      html {
+        background-color: #e9ecef;
+      }
+      .dark html {
+        background-color: #0a0520;
       }
 
-      /* This ::before pseudo-element holds the main background image and its effects.
-      * This is a common technique to resolve rendering issues on mobile browsers
-      * which can struggle with `position: fixed` when combined with `filter` and `transform`. */
-      #retro-background::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(ellipse at center, rgba(127,0,173,0.6) 0%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,1) 90%), url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/31787/stars.jpg);
-        background-size: cover;
-        background-position: center; /* Ensure the background is centered */
-        filter: blur(7px) brightness(0.72); /* Brightness increased by 20% for better visibility */
-        transform: scale(1.1);
-        z-index: -1; /* Ensure it is behind the other layers within #retro-background */
-      }
-
-
-      #retro-background > div {
-        position: absolute;
-      }
-
-      #layer-0 {
-        background: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 25%, rgba(255,71,255,1) 100%);
-        height:400px;
-        width:200vw;
-        bottom:0;
-        left: -50vw;
-        overflow: hidden;
-        transform: perspective(200px) rotateX(60deg);
-      }
-
-      #lines {
-        position: absolute;
-        inset: 0;
-        background-size: 40px 40px;    
-        background-image: repeating-linear-gradient(0deg, #60DCD3, #60DCD3 2px, transparent 1px, transparent 40px),repeating-linear-gradient(-90deg, #60DCD3, #60DCD3 2px, transparent 2px, transparent 40px);
-        opacity:1;
-      }
-
-      #layer-1, #layer-2, #layer-corner, #layer-up {
-        inset: 0;
-      }
-      #layer-1 { background: linear-gradient(45deg, rgba(92,71,255,1) 0%, rgba(92,71,255,0) 50%, rgba(92,71,255,0) 100%); }
-      #layer-2 { background: linear-gradient(135deg, rgba(92,71,255,0) 0%, rgba(92,71,255,0) 50%, rgba(92,71,255,1) 100%); }
-      #layer-corner {
-        background: linear-gradient(to bottom, rgba(71,255,203,1) 0%, rgba(96,130,223,0) 54%, rgba(117,24,240,0) 100%);
-        animation: layercorneranim 2.5s ease-in-out infinite alternate;	
-      }
-      #layer-up {
-        background: linear-gradient(to bottom, rgba(71,255,203,0) 0%, rgba(71,255,203,0) 50%, rgba(71,255,203,1) 100%);
-        height:300px;
-        width: 100%;
-        bottom:0;
-        top: auto;
-        overflow: hidden;
-        animation: layerupanim 2.5s ease-in-out infinite alternate;	
-      }
-
-      @keyframes layerupanim { from { height: 140px; } to { height: 155px; } }
-      @keyframes layercorneranim { from { height: 400px; } to { height: 540px; } }
-
-      /* Body background override */
+      /* 
+        Body background override and stacking context creation.
+        By making the body a stacking context with `isolation: isolate`, we ensure 
+        that the `PatternBackground` component (with its negative z-index) is
+        contained within the body. This prevents it from rendering behind the
+        `html` element on certain mobile browsers, fixing the disappearing
+        background issue. `position: relative` is added to support this.
+      */
       body {
           background-color: transparent !important;
           background-image: none !important;
-      }
-      .dark body {
-          background-color: transparent !important;
-          background-image: none !important;
+          position: relative;
+          isolation: isolate;
       }
       
       .dark {
@@ -241,22 +189,22 @@
       }
       
       .card-interactive-glow::before {
-        content: ''; 
-        position: absolute; 
-        left: var(--mouse-x, -500px); 
+        content: '';
+        position: absolute;
+        left: var(--mouse-x, -500px);
         top: var(--mouse-y, -500px);
-        width: 350px; 
-        height: 350px; 
+        width: 450px; /* Increased size */
+        height: 450px; /* Increased size */
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(75, 85, 99, 0.1), transparent 70%);
-        transform: translate(-50%, -50%); 
+        background: radial-gradient(circle, rgba(75, 85, 99, 0.15), transparent 70%); /* Increased opacity */
+        transform: translate(-50%, -50%);
         transition: left 0.6s ease-out, top 0.6s ease-out;
-        z-index: 0; 
-        pointer-events: none; 
+        z-index: 0;
+        pointer-events: none;
       }
       
       .dark .card-interactive-glow::before {
-        background: radial-gradient(circle, rgba(255, 250, 240, 0.15), transparent 70%);
+        background: radial-gradient(circle, rgba(255, 250, 240, 0.2), transparent 70%); /* Increased opacity */
       }
       
       .progress-bar {
@@ -679,6 +627,64 @@
       .dark .wrapper .icon .tooltip::after {
           background: #f0f0f0;
       }
+
+      /* Button Shimmer Effect */
+      @keyframes shimmer-effect {
+        0% { background-position: 200% 50%; }
+        100% { background-position: -200% 50%; }
+      }
+
+      .group:hover .shimmer-bg {
+          animation: shimmer-effect 2s linear infinite;
+      }
+      
+      /* Header Subtle Glow */
+      @keyframes subtle-glow-filter-light {
+          0%, 100% { filter: drop-shadow(0 0 3px rgba(192, 38, 211, 0.3)); }
+          50% { filter: drop-shadow(0 0 6px rgba(192, 38, 211, 0.5)); }
+      }
+      @keyframes subtle-glow-filter-dark {
+          0%, 100% { filter: drop-shadow(0 0 4px rgba(251, 207, 232, 0.4)); }
+          50% { filter: drop-shadow(0 0 8px rgba(251, 207, 232, 0.6)); }
+      }
+
+      .title-glow-subtle {
+          animation-name: subtle-glow-filter-light;
+          animation-duration: 5s;
+          animation-timing-function: ease-in-out;
+          animation-iteration-count: infinite;
+      }
+      .dark .title-glow-subtle {
+          animation-name: subtle-glow-filter-dark;
+      }
+
+      /* Stardust Background Effect */
+      @keyframes move-stardust {
+        from { transform: translateY(0px); opacity: 0; }
+        25% { opacity: 0.7; }
+        75% { opacity: 0.7; }
+        to { transform: translateY(-100vh); opacity: 0; }
+      }
+
+      .stardust-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      .star {
+        position: absolute;
+        background: white;
+        border-radius: 50%;
+        animation-name: move-stardust;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+        will-change: transform, opacity;
+      }
     </style>
     
     <script type="application/ld+json">
@@ -764,18 +770,9 @@
         }
       }
     </script>
-  <link rel="stylesheet" href="/index.css">
-</head>
+  </head>
   
   <body class="text-text-primary-light dark:text-text-primary-dark transition-colors duration-300">
-    <div id="retro-background">
-      <div id="layer-0"><div id="lines"></div></div>
-      <div id="layer-1"></div>
-      <div id="layer-2"></div>
-      <div id="layer-corner"></div>
-      <div id="layer-up"></div>
-    </div>
     <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+  </body>
 </html>
