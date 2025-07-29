@@ -13,7 +13,7 @@ const PatternBackground = () => {
           overflow: hidden;
           z-index: -10;
           transition: background 0.5s ease-in-out;
-          animation: aurora-drift 25s infinite alternate ease-in-out;
+          /* animation: aurora-drift 25s infinite alternate ease-in-out; */ /* Animation removed for performance */
         }
 
         /* Light Mode Styles */
@@ -58,7 +58,7 @@ const PatternBackground = () => {
               transparent 1px,
               transparent 60px
             );
-          animation: grid-shift 20s linear infinite;
+          /* animation: grid-shift 20s linear infinite; */ /* Animation removed for performance */
         }
 
         .aurora-bg::after {
@@ -71,7 +71,8 @@ const PatternBackground = () => {
             transparent 70%,
             rgba(233, 236, 239, 0.95) 100% /* Matched to new lighter base color */
           );
-          animation: aurora-pulse 8s infinite alternate;
+          opacity: 0.8; /* Static opacity */
+          /* animation: aurora-pulse 8s infinite alternate; */ /* Animation removed for performance */
         }
 
         /* Dark Mode Styles */
@@ -120,44 +121,7 @@ const PatternBackground = () => {
           );
         }
 
-        @keyframes aurora-drift {
-          from {
-            background-position:
-              0% 0%,
-              0% 0%,
-              0% 0%;
-          }
-          to {
-            background-position:
-              10% -10%,
-              -5% 5%,
-              5% -5%;
-          }
-        }
-
-        @keyframes grid-shift {
-          0% {
-            transform: translate(0, 0);
-          }
-          100% {
-            transform: translate(-50%, -50%);
-          }
-        }
-
-        @keyframes aurora-pulse {
-          0% {
-            opacity: 0.8;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.5;
-            transform: scale(1.05);
-          }
-          100% {
-            opacity: 0.8;
-            transform: scale(1);
-          }
-        }
+        /* All @keyframes animations have been removed. */
       `}</style>
     </div>
   );
