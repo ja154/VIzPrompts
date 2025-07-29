@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnalysisState, PromptHistoryItem, User } from './types.ts';
 import { extractFramesFromVideo, imageToDataUrl, getVideoMetadata } from './utils/video.ts';
@@ -16,6 +15,7 @@ import ResultsView from './components/ResultsView.tsx';
 import ProfilePage from './components/ProfilePage.tsx';
 import HistoryPage from './components/HistoryPage.tsx';
 import UserMenu from './components/UserMenu.tsx';
+import PatternBackground from './components/PatternBackground.tsx';
 
 
 type Theme = 'light' | 'dark';
@@ -173,21 +173,26 @@ const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: Pro
 
         if (file.type.startsWith('video/')) {
             setProgressMessage('Extracting frames...');
-            frameDataUrls = await extractFramesFromVideo(file, 5, (prog) => setProgress(prog * 0.3));
+            frameDataUrls = await extractFramesFromVideo(file, 5, (prog) => setProgress(prog * 0.2)); // Extraction is 20% of progress
         } else if (file.type.startsWith('image/')) {
             const dataUrl = videoUrl;
             setProgressMessage('Processing image...');
             frameDataUrls = [dataUrl];
-            setProgress(30);
+            setProgress(20);
         }
         
         if (frameDataUrls.length === 0) throw new Error("Could not extract frames or process the media.");
         firstFrame = frameDataUrls[0];
         
-        setProgressMessage('Analyzing with AI...');
-        setProgress(50);
-
-        const { prompt, analyses, jsonPrompt } = await generatePromptFromFrames(frameDataUrls, masterPrompt);
+        setProgress(30); // Move progress after extraction
+        
+        const { prompt, analyses, jsonPrompt } = await generatePromptFromFrames(frameDataUrls, (msg) => {
+            setProgressMessage(msg);
+            setProgress(65); // Indicate we're in the middle of the main analysis step
+        }, masterPrompt);
+        
+        setProgress(90);
+        setProgressMessage('Finalizing results...');
         
         setGeneratedPrompt(prompt);
         setOriginalPrompt(prompt);
@@ -451,35 +456,6 @@ const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: Pro
   );
 };
 
-const Features = () => (
-    <section className="max-w-6xl mx-auto animate-fade-in-slide-up animation-delay-400">
-        <h2 className="text-3xl font-bold text-center mb-12"><span className="bg-gradient-to-r from-gray-700 to-gray-900 dark:from-stone-100 dark:to-stone-300 bg-clip-text text-transparent">How It Works</span></h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <GlowCard className="bg-bg-secondary-light dark:bg-bg-secondary-dark rounded-2xl p-1 shadow-lg border border-border-primary-light dark:border-border-primary-dark">
-            <div className="rounded-xl p-6 h-full">
-              <div className="w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-4"><i className="fas fa-upload text-purple-600 dark:text-purple-400 text-xl"></i></div>
-              <h3 className="text-xl font-bold mb-2">Upload Your Media</h3>
-              <p className="text-text-secondary-light dark:text-text-secondary-dark">Simply drag and drop your video or image file. We support MP4, MOV, WEBM, JPG, and PNG formats up to 200MB.</p>
-            </div>
-          </GlowCard>
-          <GlowCard className="bg-bg-secondary-light dark:bg-bg-secondary-dark rounded-2xl p-1 shadow-lg border border-border-primary-light dark:border-border-primary-dark">
-            <div className="rounded-xl p-6 h-full">
-              <div className="w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-4"><i className="fas fa-brain text-purple-600 dark:text-purple-400 text-xl"></i></div>
-              <h3 className="text-xl font-bold mb-2">AI Analysis</h3>
-              <p className="text-text-secondary-light dark:text-text-secondary-dark">Our advanced AI analyzes key frames or the image, identifying subjects, actions, styles, lighting, and composition.</p>
-            </div>
-          </GlowCard>
-          <GlowCard className="bg-bg-secondary-light dark:bg-bg-secondary-dark rounded-2xl p-1 shadow-lg border border-border-primary-light dark:border-border-primary-dark">
-            <div className="rounded-xl p-6 h-full">
-              <div className="w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-4"><i className="fas fa-scroll text-purple-600 dark:text-purple-400 text-xl"></i></div>
-              <h3 className="text-xl font-bold mb-2">Get your Prompt</h3>
-              <p className="text-text-secondary-light dark:text-text-secondary-dark">Receive a detailed, production-ready prompt optimized for text-to-video AI models, ready to be refined.</p>
-            </div>
-          </GlowCard>
-        </div>
-      </section>
-);
-
 const MasterPromptSection = ({ masterPrompt, setMasterPrompt, presets }: {
     masterPrompt: string;
     setMasterPrompt: (p: string) => void;
@@ -497,7 +473,7 @@ const MasterPromptSection = ({ masterPrompt, setMasterPrompt, presets }: {
     return (
         <section className="max-w-4xl mx-auto animate-fade-in-slide-up animation-delay-500">
             <h2 className="text-3xl font-bold text-center mb-12">
-                <span className="bg-gradient-to-r from-gray-700 to-gray-900 dark:from-stone-100 dark:to-stone-300 bg-clip-text text-transparent flex items-center justify-center gap-4">
+                <span className="title-glow-subtle bg-gradient-to-r from-gray-700 to-gray-900 dark:from-stone-100 dark:to-stone-300 bg-clip-text text-transparent flex items-center justify-center gap-4">
                     <BrainCircuitIcon className="w-8 h-8" />
                     AI Creative Protocol
                 </span>
@@ -543,69 +519,6 @@ const MasterPromptSection = ({ masterPrompt, setMasterPrompt, presets }: {
         </section>
     );
 };
-
-
-const Testimonials = () => (
-    <section className="max-w-4xl mx-auto animate-fade-in-slide-up animation-delay-500">
-        <h2 className="text-3xl font-bold text-center mb-12"><span className="bg-gradient-to-r from-gray-700 to-gray-900 dark:from-stone-100 dark:to-stone-300 bg-clip-text text-transparent">What Creators Say</span></h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <GlowCard className="bg-bg-secondary-light dark:bg-bg-secondary-dark rounded-2xl p-1 shadow-lg border border-border-primary-light dark:border-border-primary-dark">
-            <div className="rounded-xl p-6 h-full">
-              <div className="flex items-center mb-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 flex items-center justify-center text-white font-bold mr-3">JD</div>
-                <div><h4 className="font-bold">James Donovan</h4><p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">AI Filmmaker</p></div>
-              </div>
-              <p className="text-text-secondary-light dark:text-text-secondary-dark">"This tool has revolutionized my workflow. I can now extract perfect prompts from my mood boards in seconds instead of spending hours writing them manually."</p>
-              <div className="flex mt-4"><i className="fas fa-star text-yellow-400"></i><i className="fas fa-star text-yellow-400"></i><i className="fas fa-star text-yellow-400"></i><i className="fas fa-star text-yellow-400"></i><i className="fas fa-star text-yellow-400"></i></div>
-            </div>
-          </GlowCard>
-          <GlowCard className="bg-bg-secondary-light dark:bg-bg-secondary-dark rounded-2xl p-1 shadow-lg border border-border-primary-light dark:border-border-primary-dark">
-            <div className="rounded-xl p-6 h-full">
-              <div className="flex items-center mb-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 flex items-center justify-center text-white font-bold mr-3">SM</div>
-                <div><h4 className="font-bold">Sarah Miller</h4><p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">Creative Director</p></div>
-              </div>
-              <p className="text-text-secondary-light dark:text-text-secondary-dark">"The prompts generated are incredibly detailed and capture nuances I wouldn't have thought to include. It's like having a professional prompt engineer on my team."</p>
-              <div className="flex mt-4"><i className="fas fa-star text-yellow-400"></i><i className="fas fa-star text-yellow-400"></i><i className="fas fa-star text-yellow-400"></i><i className="fas fa-star text-yellow-400"></i><i className="fas fa-star-half-alt text-yellow-400"></i></div>
-            </div>
-          </GlowCard>
-        </div>
-    </section>
-);
-
-const FAQItem = ({ q, a }: { q: string, a: string }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    return (
-        <GlowCard className="bg-bg-secondary-light dark:bg-bg-secondary-dark rounded-2xl p-1 shadow-lg border border-border-primary-light dark:border-border-primary-dark">
-            <div className="rounded-xl p-4">
-              <button onClick={() => setIsOpen(!isOpen)} className="group faq-toggle w-full flex justify-between items-center text-left p-2 -m-2 rounded-lg transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-white/5">
-                <h3 className="text-lg font-medium transition-colors duration-200 group-hover:text-primary-light dark:group-hover:text-primary-dark">{q}</h3>
-                <i className={`fas fa-chevron-down transition-all duration-300 ${isOpen ? 'rotate-180' : ''} text-text-secondary-light dark:text-text-secondary-dark group-hover:text-purple-500`}></i>
-              </button>
-              <div className={`faq-content mt-4 ${isOpen ? 'block' : 'hidden'}`}>
-                <p className="text-text-secondary-light dark:text-text-secondary-dark pl-2">{a}</p>
-              </div>
-            </div>
-        </GlowCard>
-    )
-}
-
-const FAQ = () => {
-    const faqs = [
-        { q: "How does the AI analyze my video or image?", a: "Our tool uses Google's advanced Gemini model to perform a multi-step analysis. For videos, it extracts key frames. For images or frames, it analyzes for subject, action, environment, style, and composition. Finally, it synthesizes these details into a single, cohesive prompt ready for generative AI models." },
-        { q: "What kind of media work best?", a: "For best results, use videos or images with clear subjects and consistent visual themes. Videos between 5 seconds and 1 minute and high-resolution images usually provide enough data for a detailed analysis. The AI can handle a wide variety of styles, from cinematic shots to animation." },
-        { q: "Is this service free to use?", a: "Yes, Visionary Prompts is currently free to use. We believe in making powerful creative tools accessible to everyone. Just upload your media and start generating prompts instantly." },
-        { q: "What is a 'text-to-video prompt'?", a: "A text-to-video prompt is a detailed textual description used to instruct a generative AI model (like Sora, Runway, or Pika) on what kind of video to create. A high-quality prompt is the key to getting a high-quality AI-generated video." }
-    ];
-    return (
-        <section className="max-w-4xl mx-auto animate-fade-in-slide-up animation-delay-700">
-            <h2 className="text-3xl font-bold text-center mb-12"><span className="bg-gradient-to-r from-gray-700 to-gray-900 dark:from-stone-100 dark:to-stone-300 bg-clip-text text-transparent">Frequently Asked Questions</span></h2>
-            <div className="space-y-4">
-                {faqs.map((faq, i) => <FAQItem key={i} q={faq.q} a={faq.a} />)}
-            </div>
-      </section>
-    );
-}
 
 const Footer = ({ onNavigate }: { onNavigate: (view: AppView) => void }) => (
     <footer className="mt-24">
@@ -688,6 +601,10 @@ const App: React.FC = () => {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [masterPrompt, setMasterPrompt] = useState<string>(masterPromptPresets[0].prompt);
 
+    const handleAuthSuccess = () => {
+        setIsAuthModalOpen(false);
+        setCurrentView('profile');
+    };
 
     const handleThemeToggle = () => {
         const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -719,10 +636,12 @@ const App: React.FC = () => {
     
     return (
         <>
+            <PatternBackground />
             <div className="relative z-10 flex flex-col min-h-screen">
                 <Auth 
                     isOpen={isAuthModalOpen} 
                     onClose={() => setIsAuthModalOpen(false)}
+                    onAuthSuccess={handleAuthSuccess}
                 />
 
                 <div className="absolute top-0 left-0 right-0 z-40 p-6 flex justify-between items-start">
@@ -755,11 +674,8 @@ const App: React.FC = () => {
                 <main className="container mx-auto px-4 flex-grow">
                     {currentView === 'main' && (
                         <div className="space-y-24">
-                            <Features />
                             <MasterPromptSection masterPrompt={masterPrompt} setMasterPrompt={setMasterPrompt} presets={masterPromptPresets} />
                             <Uploader onAddToHistory={addToHistory} masterPrompt={masterPrompt} />
-                            <Testimonials />
-                            <FAQ />
                         </div>
                     )}
                     {currentView === 'profile' && <ProfilePage />}
