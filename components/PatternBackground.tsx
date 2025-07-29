@@ -1,61 +1,164 @@
 import React from 'react';
 
 const PatternBackground = () => {
-  // Generates a large grid of isometric cube elements for the SVG background.
-  const renderCubes = () => {
-    const cubes = [];
-    const viewWidth = 2400; // Large width to cover a 200% scaled view
-    const viewHeight = 2000; // Large height
-    const cubeWidth = 100;
-    const rhombusHeight = 86.6; // This is a single rhombus's height
-
-    // Tile the cubes in a honeycomb-like pattern
-    for (let y = -rhombusHeight; y < viewHeight; y += rhombusHeight) {
-      // Offset every other row for the staggered pattern
-      const isEvenRow = Math.round(y / rhombusHeight) % 2 === 0;
-      const xOffset = isEvenRow ? cubeWidth / 2 : 0;
-      
-      for (let x = -cubeWidth / 2; x < viewWidth; x += cubeWidth) {
-        const currentX = x + xOffset;
-        
-        // A group for a single cube, translated to its grid position
-        cubes.push(
-          <g transform={`translate(${currentX}, ${y})`} key={`${currentX}-${y}`}>
-            <polygon points="50,0 100,28.8 50,57.6 0,28.8" fill="url(#cube-light-theme)"/>
-            <polygon points="0,28.8 50,57.6 50,115.2 0,86.4" fill="url(#cube-dark-theme)"/>
-            <polygon points="50,57.6 100,28.8 100,86.4 50,115.2" fill="url(#cube-mid-theme)"/>
-          </g>
-        );
-      }
-    }
-    return cubes;
-  };
-
   return (
-    <div className="pattern-bg" aria-hidden="true">
-      <svg
-        preserveAspectRatio="xMidYMid slice"
-        className="cube-svg"
-        viewBox="0 0 2400 2000"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <defs>
-          {/* Gradients are defined here but styled via CSS variables for theming */}
-          <linearGradient id="cube-dark-theme" gradientTransform="rotate(45)">
-            <stop offset="0%"/>
-            <stop offset="100%"/>
-          </linearGradient>
-          <linearGradient id="cube-mid-theme" gradientTransform="rotate(45)">
-            <stop offset="0%"/>
-            <stop offset="100%"/>
-          </linearGradient>
-          <linearGradient id="cube-light-theme" gradientTransform="rotate(45)">
-            <stop offset="0%"/>
-            <stop offset="100%"/>
-          </linearGradient>
-        </defs>
-        {renderCubes()}
-      </svg>
+    <div className="aurora-bg" aria-hidden="true">
+      <style>{`
+        .aurora-bg {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+          z-index: -10;
+          transition: background 0.5s ease-in-out;
+          animation: aurora-drift 25s infinite alternate ease-in-out;
+        }
+
+        /* Light Mode Styles */
+        .aurora-bg {
+          background: radial-gradient(
+              ellipse at 20% 30%,
+              rgba(138, 43, 226, 0.8) 0%, /* Increased opacity */
+              rgba(138, 43, 226, 0) 70%
+            ),
+            radial-gradient(
+              ellipse at 80% 50%,
+              rgba(0, 191, 255, 0.9) 0%, /* Increased opacity */
+              rgba(0, 191, 255, 0) 70%
+            ),
+            radial-gradient(
+              ellipse at 50% 80%,
+              rgba(50, 205, 50, 0.75) 0%, /* Increased opacity */
+              rgba(50, 205, 50, 0) 70%
+            ),
+            linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); /* Kept base light */
+          background-blend-mode: multiply; /* Changed blend mode for visibility */
+        }
+
+        .aurora-bg::before {
+          content: "";
+          position: absolute;
+          width: 200%;
+          height: 200%;
+          top: -50%;
+          left: -50%;
+          background: repeating-linear-gradient(
+              45deg,
+              rgba(0, 0, 0, 0.015) 0px,
+              rgba(0, 0, 0, 0.015) 1px,
+              transparent 1px,
+              transparent 40px
+            ),
+            repeating-linear-gradient(
+              -45deg,
+              rgba(0, 0, 0, 0.02) 0px,
+              rgba(0, 0, 0, 0.02) 1px,
+              transparent 1px,
+              transparent 60px
+            );
+          animation: grid-shift 20s linear infinite;
+        }
+
+        .aurora-bg::after {
+          content: "";
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          background: radial-gradient(
+            circle at center,
+            transparent 70%,
+            rgba(233, 236, 239, 0.95) 100% /* Matched to new lighter base color */
+          );
+          animation: aurora-pulse 8s infinite alternate;
+        }
+
+        /* Dark Mode Styles */
+        .dark .aurora-bg {
+          background: radial-gradient(
+              ellipse at 20% 30%,
+              rgba(138, 43, 226, 0.8) 0%,
+              rgba(138, 43, 226, 0) 60%
+            ),
+            radial-gradient(
+              ellipse at 80% 50%,
+              rgba(0, 191, 255, 0.7) 0%,
+              rgba(0, 191, 255, 0) 70%
+            ),
+            radial-gradient(
+              ellipse at 50% 80%,
+              rgba(50, 205, 50, 0.6) 0%,
+              rgba(50, 205, 50, 0) 65%
+            ),
+            linear-gradient(135deg, #000000 0%, #0a0520 100%);
+          background-blend-mode: overlay, screen, hard-light;
+        }
+        
+        .dark .aurora-bg::before {
+          background: repeating-linear-gradient(
+              45deg,
+              rgba(255, 255, 255, 0.02) 0px,
+              rgba(255, 255, 255, 0.02) 1px,
+              transparent 1px,
+              transparent 40px
+            ),
+            repeating-linear-gradient(
+              -45deg,
+              rgba(255, 255, 255, 0.03) 0px,
+              rgba(255, 255, 255, 0.03) 1px,
+              transparent 1px,
+              transparent 60px
+            );
+        }
+
+        .dark .aurora-bg::after {
+          background: radial-gradient(
+            circle at center,
+            transparent 70%,
+            rgba(10, 5, 32, 0.9) 100%
+          );
+        }
+
+        @keyframes aurora-drift {
+          from {
+            background-position:
+              0% 0%,
+              0% 0%,
+              0% 0%;
+          }
+          to {
+            background-position:
+              10% -10%,
+              -5% 5%,
+              5% -5%;
+          }
+        }
+
+        @keyframes grid-shift {
+          0% {
+            transform: translate(0, 0);
+          }
+          100% {
+            transform: translate(-50%, -50%);
+          }
+        }
+
+        @keyframes aurora-pulse {
+          0% {
+            opacity: 0.8;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.5;
+            transform: scale(1.05);
+          }
+          100% {
+            opacity: 0.8;
+            transform: scale(1);
+          }
+        }
+      `}</style>
     </div>
   );
 };
