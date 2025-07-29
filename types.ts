@@ -26,4 +26,5 @@ export interface PromptHistoryItem {
     jsonPrompt: string;
     thumbnail: string; // Should be a full data URI: "data:image/jpeg;base64,..."
     timestamp: string;
+    suggestedNegativePrompts?: string[];
 }
