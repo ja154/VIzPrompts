@@ -194,25 +194,28 @@
         overflow: hidden; 
       }
       
-      .card-interactive-glow::before {
-        content: '';
-        position: absolute;
-        left: var(--mouse-x, -500px);
-        top: var(--mouse-y, -500px);
-        width: 450px; /* Increased size */
-        height: 450px; /* Increased size */
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(75, 85, 99, 0.15), transparent 70%); /* Increased opacity */
-        transform: translate(-50%, -50%);
-        transition: left 0.6s ease-out, top 0.6s ease-out;
-        z-index: 0;
-        pointer-events: none;
+      /* PERFORMANCE: Disable expensive mouse-move glow effect on touch devices */
+      @media (hover: hover) and (pointer: fine) {
+        .card-interactive-glow::before {
+          content: '';
+          position: absolute;
+          left: var(--mouse-x, -500px);
+          top: var(--mouse-y, -500px);
+          width: 450px;
+          height: 450px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(75, 85, 99, 0.15), transparent 70%);
+          transform: translate(-50%, -50%);
+          transition: left 0.6s ease-out, top 0.6s ease-out;
+          z-index: 0;
+          pointer-events: none;
+        }
+        
+        .dark .card-interactive-glow::before {
+          background: radial-gradient(circle, rgba(255, 250, 240, 0.2), transparent 70%);
+        }
       }
-      
-      .dark .card-interactive-glow::before {
-        background: radial-gradient(circle, rgba(255, 250, 240, 0.2), transparent 70%); /* Increased opacity */
-      }
-      
+
       .progress-bar {
         background-image: linear-gradient(
           45deg,
@@ -451,7 +454,7 @@
         position: absolute;
         bottom: -0.625em;
         left: 0.312em;
-        -webkit-box-shadow: 0.937em 0.312em var(--clouds-color), -0.312em -0.312em var(--back-clouds-color), 1.437em 0.375em var(--clouds-color), 0.5em -0.125em var(--back-clouds-color), 2.187em 0 var(--clouds-color), 1.25em -0.062em var(--back-clouds-color), 2.937em 0.312em var(--clouds-color), 2em -0.312em var(--back-clouds-color), 3.625em -0.062em var(--clouds-color), 2.625em 0em var(--back-clouds-color), 4.5em -0.312em var(--clouds-color), 3.375em -0.437em var(--back-clouds-color), 4.625em -1.75em 0 0.437em var(--clouds-color), 4em -0.625em var(--back-clouds-color), 4.125em -2.125em 0 0.437em var(--back-clouds-color);
+        -webkit-box-shadow: 0.937em 0.312em var(--clouds-color), -0.312em -0.312em var(--back-clouds-color), 1.437em 0.375em var(--clouds-color), 0.5em -0.125em var(--back-clouds-color), 2.187em 0 var(--clouds-color), 1.25em -0.062em var(--back-clouds-color), 2.937em 0.312em var(--clouds-color), 2em -0.312em var(--back-clouds-color), 3.625em -0.062em var(--clouds-color), 2.625em 0em var(--back-clouds-color), 4.5em -0.312em var(--clouds-color), 3.375em -0.437em var(--back-clouds-color), 4.625em -1.75em 0 0.437em var(--clouds-color), 4em -0.625em var(--back-clouds-color), 4.125em -2.215em 0 0.437em var(--back-clouds-color);
         box-shadow: 0.937em 0.312em var(--clouds-color), -0.312em -0.312em var(--back-clouds-color), 1.437em 0.375em var(--clouds-color), 0.5em -0.125em var(--back-clouds-color), 2.187em 0 var(--clouds-color), 1.25em -0.062em var(--back-clouds-color), 2.937em 0.312em var(--clouds-color), 2em -0.312em var(--back-clouds-color), 3.625em -0.062em var(--clouds-color), 2.625em 0em var(--back-clouds-color), 4.5em -0.312em var(--clouds-color), 3.375em -0.437em var(--back-clouds-color), 4.625em -1.75em 0 0.437em var(--clouds-color), 4em -0.625em var(--back-clouds-color), 4.125em -2.125em 0 0.437em var(--back-clouds-color);
         -webkit-transition: 0.5s cubic-bezier(0, -0.02, 0.4, 1.25);
         -o-transition: 0.5s cubic-bezier(0, -0.02, 0.4, 1.25);
@@ -662,34 +665,6 @@
       }
       .dark .title-glow-subtle {
           animation-name: subtle-glow-filter-dark;
-      }
-
-      /* Stardust Background Effect */
-      @keyframes move-stardust {
-        from { transform: translateY(0px); opacity: 0; }
-        25% { opacity: 0.7; }
-        75% { opacity: 0.7; }
-        to { transform: translateY(-100vh); opacity: 0; }
-      }
-
-      .stardust-container {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        pointer-events: none;
-      }
-
-      .star {
-        position: absolute;
-        background: white;
-        border-radius: 50%;
-        animation-name: move-stardust;
-        animation-timing-function: linear;
-        animation-iteration-count: infinite;
-        will-change: transform, opacity;
       }
     </style>
     
