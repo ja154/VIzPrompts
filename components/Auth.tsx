@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import BlurryButton from './Button';
@@ -6,6 +5,7 @@ import BlurryButton from './Button';
 interface AuthProps {
   isOpen: boolean;
   onClose: () => void;
+  onAuthSuccess: () => void;
 }
 
 declare global {
@@ -14,7 +14,7 @@ declare global {
   }
 }
 
-const Auth: React.FC<AuthProps> = ({ isOpen, onClose }) => {
+const Auth: React.FC<AuthProps> = ({ isOpen, onClose, onAuthSuccess }) => {
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -82,7 +82,7 @@ const Auth: React.FC<AuthProps> = ({ isOpen, onClose }) => {
   const handleAuthSuccess = (message: string) => {
     setSuccessMessage(message);
     setTimeout(() => {
-        onClose();
+        onAuthSuccess();
     }, 1500);
   };
 
