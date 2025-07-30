@@ -1,5 +1,6 @@
 
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
+import { SceneAnalysis } from '../types.ts';
 
 const API_KEY = process.env.API_KEY;
 
@@ -9,18 +10,10 @@ if (!API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-// A more streamlined interface for structured frame analysis to improve AI focus.
-export interface FrameAnalysis {
-  frame_number: number;
-  action_and_expression: string;
-}
-
-
 export interface PromptGenerationResult {
   prompt: string;
-  analyses: FrameAnalysis[];
-  jsonPrompt: string;
-  suggestedNegativePrompts: string[];
+  analyses: SceneAnalysis[];
+  jsonResponse: string;
 }
 
 // Helper to parse a Data URL into its components for the API
@@ -41,28 +34,49 @@ const parseDataUrl = (dataUrl: string) => {
  * Converts a descriptive text prompt into a structured JSON object.
  * @param promptToStructure The text prompt to convert.
  * @param masterPrompt The foundational system instruction for the AI's personality.
- * @returns A promise that resolves to a stringified JSON object.
+ * @returns A promise that resolves to a stringified JSON object representing the scene analysis.
  */
 export const structurePrompt = async (promptToStructure: string, masterPrompt: string): Promise<string> => {
     const structuringPrompt = `
-      Based on the following detailed text-to-video prompt, convert it into a structured JSON object using the Universal Prompt Framework.
-      
+      Based on the following text-to-video prompt, break it down into one or more scenes and convert it into a structured JSON array following a detailed filmmaking framework.
+      If the prompt describes a single continuous scene, create an array with just one scene object.
+      For each scene object in the array, provide: scene_number, description, camera_details, lighting, color_palette, textures_details, atmosphere, and sound_design.
+
+      Strive for the professional quality shown in this example for a single scene:
+      {
+        "scene_number": 13,
+        "description": "A tense, close-up of a Kenyan engineer’s hands rapidly typing on a holographic display, adjusting real-time telemetry data. The glow of the screen casts eerie blue light on their face, revealing beads of sweat. A voice crackles over the radio: 'Kama hiyo data si sahihi, tutaisha!' (If that data’s wrong, we’re finished!). The holographic interface flickers with 'JengaForge' branding. The sterile, high-tech environment of the engineering booth, filled with monitors and cables. The cool, artificial glow of screens, the tactile feedback of holographic keys.",
+        "camera_details": "Arri Alexa, tight close-up on hands and face",
+        "lighting": "Cool, artificial blue from holographic display",
+        "color_palette": "Dark room with neon-blue highlights",
+        "textures_details": "Glowing holograms, sweat on skin, metallic keyboard",
+        "atmosphere": "High stakes, urgency, futuristic tension",
+        "sound_design": "Rapid typing, radio static, tense breathing"
+      }
+
       TEXT PROMPT:
       "${promptToStructure}"
     `;
 
-    const responseSchema = {
+    const sceneSchema = {
         type: Type.OBJECT,
         properties: {
-            subject_and_action: { type: Type.STRING, description: "The core focus: what the image is of and what it is doing." },
-            image_type_and_style: { type: Type.STRING, description: "The medium and overall aesthetic (e.g., photograph, oil painting, surrealism)." },
-            setting_location_and_background: { type: Type.STRING, description: "The environment that frames the subject." },
-            lighting_and_atmosphere: { type: Type.STRING, description: "The quality, color, and direction of light that sets the mood." },
-            composition_and_camera_angle: { type: Type.STRING, description: "The arrangement of elements and the viewer's perspective." },
-            color_palette_and_tonality: { type: Type.STRING, description: "The specific color scheme of the image." },
-            level_of_detail_and_texture: { type: Type.STRING, description: "The desired fidelity and surface quality." },
-            desired_emotion_and_mood: { type: Type.STRING, description: "The feeling the image should evoke." }
-        }
+            scene_number: { type: Type.INTEGER, description: "The sequential number of the scene." },
+            description: { type: Type.STRING, description: "A detailed narrative description of this specific scene, covering the action, setting, and characters." },
+            camera_details: { type: Type.STRING, description: "Specifics about the camera work: shot type, angle, movement, and lens effects." },
+            lighting: { type: Type.STRING, description: "The lighting style and sources." },
+            color_palette: { type: Type.STRING, description: "The dominant colors and overall tonality." },
+            textures_details: { type: Type.STRING, description: "Key textures to emphasize." },
+            atmosphere: { type: Type.STRING, description: "The overall mood or vibe of the scene." },
+            sound_design: { type: Type.STRING, description: "Important sounds or dialogue." }
+        },
+        required: ["scene_number", "description", "camera_details", "lighting", "color_palette", "textures_details", "atmosphere", "sound_design"]
+    };
+
+    const responseSchema = {
+        type: Type.ARRAY,
+        description: "A detailed, scene-by-scene breakdown of the video prompt.",
+        items: sceneSchema
     };
 
     try {
@@ -70,7 +84,7 @@ export const structurePrompt = async (promptToStructure: string, masterPrompt: s
             model: 'gemini-2.5-flash',
             contents: structuringPrompt,
             config: {
-                systemInstruction: `${masterPrompt}\n\nYour primary task is to convert a descriptive text prompt into a well-organized JSON object based on the Universal Prompt Framework. The JSON must adhere to the provided schema. Output only the raw JSON.`,
+                systemInstruction: `${masterPrompt}\n\nYour primary task is to convert a descriptive text prompt into a well-organized JSON array of scene objects. The JSON must adhere to the provided schema. Output only the raw JSON.`,
                 responseMimeType: "application/json",
                 responseSchema: responseSchema,
             }
@@ -92,7 +106,7 @@ export const structurePrompt = async (promptToStructure: string, masterPrompt: s
             JSON.parse(cleanedJsonPrompt);
         } catch (e) {
             console.error("Failed to parse the structured JSON prompt from AI:", cleanedJsonPrompt, e);
-            cleanedJsonPrompt = JSON.stringify({ error: "AI returned invalid JSON.", details: cleanedJsonPrompt }, null, 2);
+            cleanedJsonPrompt = JSON.stringify([{ error: "AI returned invalid JSON.", details: cleanedJsonPrompt }], null, 2);
         }
         return cleanedJsonPrompt;
 
@@ -112,7 +126,7 @@ export const structurePrompt = async (promptToStructure: string, masterPrompt: s
  * @param frameDataUrls An array of data URLs for the video frames or images.
  * @param onProgress A callback to update the UI with processing messages.
  * @param masterPrompt The foundational system instruction for the AI's personality.
- * @returns A promise that resolves to an object containing the final prompt, the detailed frame-by-frame analysis, and a structured JSON prompt.
+ * @returns A promise that resolves to an object containing the final prompt and the detailed scene-by-scene analysis.
  */
 export const generatePromptFromFrames = async (
     frameDataUrls: string[],
@@ -132,79 +146,74 @@ export const generatePromptFromFrames = async (
         });
 
         const analysisPrompt = `
-        You are a Master AI trained on the Universal Prompting Framework for Text-to-Video models. Your purpose is to analyze video frames and produce a 'Maestro' level prompt, embodying the highest standards of cinematography, art direction, and narrative storytelling. You will be given a sequence of video frames. Your task is to deconstruct this visual information and then synthesize it into a hyper-detailed, professional-grade text-to-video prompt.
+        You are a world-class AI film director and cinematographer. Your task is to analyze a sequence of video frames and generate a single, raw JSON object based on the provided schema.
 
-        Follow this multi-step process:
+        **Video-to-Prompt Framework:**
 
-        **Part 1: Deconstruction & Holistic Analysis**
-        Analyze the clip AS A WHOLE to identify its core components. Think like a cinematographer and art director. Your analysis here will form the basis of the final structured prompt.
-        - **Subject & Appearance**: Describe the primary subject with extreme detail (age, clothing, emotional state, key features).
-        - **Scene & Environment**: Describe the setting with depth (foreground, background, mood, time of day).
-        - **Cinematography**: Identify the primary camera work. Use precise terms: shot type (e.g., Medium Shot, Close-Up), angle (e.g., Low-Angle), and movement (e.g., Tracking Shot, Dolly In).
-        - **Lighting Style**: Describe the lighting with evocative language (e.g., 'Dramatic low-key lighting', 'Soft golden hour glow', 'Chiaroscuro').
-        - **Artistic Style & Medium**: Define the overall aesthetic (e.g., 'Photorealistic, shot on 35mm film', 'Ghibli-style anime', '1940s film noir').
-        - **Color Palette**: Describe the dominant color scheme (e.g., 'Vibrant complementary colors of teal and orange', 'Muted, desaturated earth tones').
+        Analyze the frames and break them down into distinct scenes. For each scene, create a JSON object for the \`scene_analysis\` array with hyper-detailed descriptions for the following keys. Strive for the level of professional, evocative detail shown in these examples:
+        
+        Example 1:
+        {
+          "scene_number": 10,
+          "description": "A high-speed, low-angle tracking shot of an F1 car roaring down a rain-soaked street in downtown Nairobi, its tires kicking up a dramatic spray of water. The car’s livery—featuring 'vizprompts' and 'JengaForge'—gleams under the neon glow of city lights reflecting off wet asphalt. Pedestrians in colorful umbrellas scramble aside, their expressions a mix of awe and irritation. The sheer kinetic energy of the car contrasts with the chaotic urban backdrop. The slick, reflective road surface, the blurred streaks of headlights, the rippling puddles, the vibrant umbrellas.",
+          "camera_details": "Arri Alexa, low-angle tracking shot with stabilized rig",
+          "lighting": "Neon city lights, diffused by rain, high contrast",
+          "color_palette": "Vibrant umbrellas against dark, wet asphalt, neon reflections",
+          "textures_details": "Slick road surface, water spray, blurred lights, glossy car livery",
+          "atmosphere": "High energy, urban chaos, cinematic speed",
+          "sound_design": "Roaring engine, screeching tires, splashing water, distant shouts"
+        }
 
-        **Part 2: Temporal Action Analysis (\`frameAnalyses\`)**
-        Now, analyze the sequence frame-by-frame, focusing *only* on the evolution of the action and emotion. For each frame, provide a concise description of:
-        - \`frame_number\`: The sequential number of the frame being analyzed.
-        - \`action_and_expression\`: What is the subject doing and feeling in this specific frame? Describe the exact motion and facial expression. Be specific about changes from the previous frame.
+        Example 2:
+        {
+          "scene_number": 13,
+          "description": "A tense, close-up of a Kenyan engineer’s hands rapidly typing on a holographic display, adjusting real-time telemetry data. The glow of the screen casts eerie blue light on their face, revealing beads of sweat. A voice crackles over the radio: 'Kama hiyo data si sahihi, tutaisha!' (If that data’s wrong, we’re finished!). The holographic interface flickers with 'JengaForge' branding. The sterile, high-tech environment of the engineering booth, filled with monitors and cables. The cool, artificial glow of screens, the tactile feedback of holographic keys.",
+          "camera_details": "Arri Alexa, tight close-up on hands and face",
+          "lighting": "Cool, artificial blue from holographic display",
+          "color_palette": "Dark room with neon-blue highlights",
+          "textures_details": "Glowing holograms, sweat on skin, metallic keyboard",
+          "atmosphere": "High stakes, urgency, futuristic tension",
+          "sound_design": "Rapid typing, radio static, tense breathing"
+        }
 
-        **Part 3: Synthesis - The Maestro Prompt (\`finalPrompt\`)**
-        This is your most critical output. Synthesize all the information from Parts 1 and 2 into a single, flowing, narrative paragraph. This prompt must:
-        - Be written in an active voice.
-        - Weave together the subject, action, scene, cinematography, lighting, and style into a cohesive whole.
-        - Describe the sequence of actions chronologically and with rich, descriptive verbs and adverbs.
-        - Result in a 'decisive moment' micro-story that implies a past and suggests a future.
+        After creating the \`scene_analysis\` array, add this key to the root of the JSON object:
 
-        **Part 4: Structured Prompt Breakdown (\`structuredPrompt\`)**
-        Deconstruct your synthesized \`finalPrompt\` (and your holistic analysis from Part 1) into a structured JSON object using the Universal Prompt Framework. This gives the user modular control. The \`subject_and_action\` field should contain the core narrative from your final prompt.
+        1.  **\`master_prompt\`**: Synthesize all scene \`description\` fields into one single, cohesive, comma-separated paragraph. This master prompt should chronologically narrate the entire video for a text-to-video AI model.
 
-        **Part 5: Negative Prompts (\`suggestedNegativePrompts\`)**
-        Suggest 3-5 keywords to avoid common artifacts, relevant to the scene.
-
-        Your final output MUST be a single, raw JSON object adhering to the provided schema. Do not add any conversational text or markdown.
+        Your output must be a single JSON object conforming to the schema. Do not include any conversational text or markdown.
         `;
+        
+        const sceneSchema = {
+            type: Type.OBJECT,
+            properties: {
+                scene_number: { type: Type.INTEGER, description: "The sequential number of the scene." },
+                description: { type: Type.STRING, description: "A detailed narrative description of this specific scene, covering the action, setting, and characters." },
+                camera_details: { type: Type.STRING, description: "Specifics about the camera work: shot type, angle, movement, and lens effects." },
+                lighting: { type: Type.STRING, description: "The lighting style and sources." },
+                color_palette: { type: Type.STRING, description: "The dominant colors and overall tonality." },
+                textures_details: { type: Type.STRING, description: "Key textures to emphasize." },
+                atmosphere: { type: Type.STRING, description: "The overall mood or vibe of the scene." },
+                sound_design: { type: Type.STRING, description: "Important sounds or dialogue." }
+            },
+            required: ["scene_number", "description", "camera_details", "lighting", "color_palette", "textures_details", "atmosphere", "sound_design"]
+        };
 
         const responseSchema = {
             type: Type.OBJECT,
             properties: {
-                finalPrompt: {
+                master_prompt: {
                     type: Type.STRING,
-                    description: "The single, synthesized, 'Maestro' level text-to-video prompt, formatted as a rich narrative paragraph that captures the video's motion, style, and story."
+                    description: "The final, synthesized, direct text-to-video prompt, created by combining all scene descriptions."
                 },
-                structuredPrompt: {
-                    type: Type.OBJECT,
-                    description: "A structured JSON object breaking down the synthesized prompt into its core components based on the Universal Prompt Framework.",
-                    properties: {
-                         subject_and_action: { type: Type.STRING, description: "The core focus: what the image is of and what it is doing." },
-                         image_type_and_style: { type: Type.STRING, description: "The medium and overall aesthetic (e.g., photograph, oil painting, surrealism)." },
-                         setting_location_and_background: { type: Type.STRING, description: "The environment that frames the subject." },
-                         lighting_and_atmosphere: { type: Type.STRING, description: "The quality, color, and direction of light that sets the mood." },
-                         composition_and_camera_angle: { type: Type.STRING, description: "The arrangement of elements and the viewer's perspective." },
-                         color_palette_and_tonality: { type: Type.STRING, description: "The specific color scheme of the image." },
-                         level_of_detail_and_texture: { type: Type.STRING, description: "The desired fidelity and surface quality." },
-                         desired_emotion_and_mood: { type: Type.STRING, description: "The feeling the image should evoke." }
-                    }
-                },
-                frameAnalyses: {
+                scene_analysis: {
                     type: Type.ARRAY,
-                    description: "An array of analyses focusing on the change in action and expression for each frame.",
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            frame_number: { type: Type.INTEGER, description: "The sequential number of the frame being analyzed." },
-                            action_and_expression: { type: Type.STRING, description: "A concise description of the subject's specific action and facial expression in this frame." },
-                        }
-                    }
-                },
-                suggestedNegativePrompts: {
-                    type: Type.ARRAY,
-                    description: "A list of suggested keywords to use in a negative prompt to improve output quality.",
-                    items: { type: Type.STRING }
+                    description: "A detailed, scene-by-scene breakdown of the video.",
+                    items: sceneSchema
                 }
-            }
+            },
+            required: ["master_prompt", "scene_analysis"]
         };
+
 
         const analysisResponse: GenerateContentResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -226,15 +235,14 @@ export const generatePromptFromFrames = async (
     
         const result = JSON.parse(analysisJsonStr);
 
-        if (!result.finalPrompt || !result.frameAnalyses || !result.structuredPrompt || !result.suggestedNegativePrompts) {
+        if (!result.master_prompt || !result.scene_analysis) {
             throw new Error("The AI model returned an incomplete analysis. The result was missing key fields. Please try a different video.");
         }
 
         return {
-            prompt: result.finalPrompt,
-            analyses: result.frameAnalyses,
-            jsonPrompt: JSON.stringify(result.structuredPrompt, null, 2),
-            suggestedNegativePrompts: result.suggestedNegativePrompts,
+            prompt: result.master_prompt,
+            analyses: result.scene_analysis,
+            jsonResponse: analysisJsonStr,
         };
 
     } catch (error) {
