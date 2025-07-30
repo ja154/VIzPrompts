@@ -7,7 +7,6 @@ const AnimatedAppName = () => {
       <style>{`
         .app-name-container {
           height: 90px;
-          margin-top: -20px;
         }
 
         .vizprompts-title-reveal {
@@ -23,7 +22,6 @@ const AnimatedAppName = () => {
         @media (max-width: 768px) {
           .app-name-container {
             height: 80px;
-            margin-top: -18px;
           }
           .vizprompts-title-reveal {
             font-size: 80px;
@@ -33,7 +31,6 @@ const AnimatedAppName = () => {
         @media (max-width: 480px) {
           .app-name-container {
             height: 70px;
-            margin-top: -16px;
           }
           .vizprompts-title-reveal {
             font-size: 70px;
@@ -61,8 +58,8 @@ const AnimatedAppName = () => {
               y2="0" x2="0" y1="80" x1="0"
               id="animated-title-gradient"
             >
-              <stop stopColor="#7DD3FC"></stop>
-              <stop stopColor="#A5F3FC" offset="1"></stop>
+              <stop stopColor="#C0C0C0"></stop>
+              <stop stopColor="#f97316" offset="1"></stop>
               <animateTransform
                 repeatCount="indefinite"
                 keySplines=".42,0,.58,1;.42,0,.58,1;.42,0,.58,1;.42,0,.58,1;.42,0,.58,1;.42,0,.58,1;.42,0,.58,1;.42,0,.58,1"
