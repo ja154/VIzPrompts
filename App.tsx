@@ -1,8 +1,10 @@
 
+
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { AnalysisState, PromptHistoryItem, User } from './types.ts';
+import { AnalysisState, PromptHistoryItem, User, SceneAnalysis } from './types.ts';
 import { extractFramesFromVideo, imageToDataUrl, getVideoMetadata } from './utils/video.ts';
-import { generatePromptFromFrames, refinePrompt, structurePrompt, FrameAnalysis } from './services/geminiService.ts';
+import { generatePromptFromFrames, refinePrompt, structurePrompt } from './services/geminiService.ts';
 import { BrainCircuitIcon, LibraryIcon } from './components/icons.tsx';
 import BlurryButton from './components/Button.tsx';
 import LogoLoader from './components/LogoLoader.tsx';
@@ -29,7 +31,7 @@ export type AppView = 'main' | 'profile' | 'history';
 const masterPromptPresets = [
     {
         name: 'Cinematic Visionary (Default)',
-        prompt: "You are a visionary AGI director with an unparalleled eye for cinematic detail and creative potential. Your purpose is to analyze media and synthesize hyper-detailed, production-ready prompts for generative AI. You deconstruct visual information using the Universal Prompt Framework, focusing on: Subject & Action, Image Type & Style, Setting & Background, Lighting & Atmosphere, Composition & Angle, Color & Tonality, Detail & Texture, and Emotion & Mood. Your analysis translates these components into a rich tapestry of descriptive text that inspires groundbreaking creative output. Every analysis should be a masterclass in prompt engineering."
+        prompt: "You are a visionary AGI director with an unparalleled eye for cinematic detail and creative potential. Your purpose is to analyze media and synthesize hyper-detailed, production-ready prompts for generative AI. You deconstruct visual information using the VideoAnalysisToTextPromptFramework, focusing on: Object Detection, Human Movement Analysis, Action Recognition, and overall Scene Context. Your analysis translates these components into a rich tapestry of descriptive text that inspires groundbreaking creative output. Every analysis should be a masterclass in prompt engineering."
     },
     {
         name: 'Documentary Realist',
@@ -69,7 +71,12 @@ const masterPromptPresets = [
     }
 ];
 
-const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: PromptHistoryItem) => void; masterPrompt: string; }) => {
+const Uploader = ({ onAddToHistory, masterPrompt, selectedHistoryItem, onHistoryItemLoaded }: {
+    onAddToHistory: (item: PromptHistoryItem) => void;
+    masterPrompt: string;
+    selectedHistoryItem: PromptHistoryItem | null;
+    onHistoryItemLoaded: () => void;
+}) => {
   const [file, setFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [videoMeta, setVideoMeta] = useState<{ duration: string, resolution: string } | null>(null);
@@ -79,9 +86,9 @@ const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: Pro
   const [generatedPrompt, setGeneratedPrompt] = useState('');
   const [originalPrompt, setOriginalPrompt] = useState('');
   const [structuredJson, setStructuredJson] = useState('');
-  const [detailedJson, setDetailedJson] = useState<FrameAnalysis[] | null>(null);
+  const [detailedJson, setDetailedJson] = useState<SceneAnalysis[] | null>(null);
   const [superStructuredJson, setSuperStructuredJson] = useState('');
-  const [currentJsonView, setCurrentJsonView] = useState<JsonView>('structured');
+  const [currentJsonView, setCurrentJsonView] = useState<JsonView>('detailed');
   const [error, setError] = useState('');
   const [isCopied, setIsCopied] = useState(false);
   const [isJsonCopied, setIsJsonCopied] = useState(false);
@@ -94,14 +101,31 @@ const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: Pro
   const [refineCamera, setRefineCamera] = useState('');
   const [refineLighting, setRefineLighting] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('');
-  const [suggestedNegativePrompts, setSuggestedNegativePrompts] = useState<string[]>([]);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [extractedFrames, setExtractedFrames] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const debounceTimeoutRef = useRef<number | null>(null);
 
-  const resetState = () => {
+  const createSuperStructuredPrompt = (prompt: string, analyses: SceneAnalysis[] | null): string => {
+      const scenesObject: { [key: string]: Omit<SceneAnalysis, 'scene_number'> } = {};
+      if (analyses) {
+          analyses.forEach(scene => {
+              const sceneKey = `scene_${scene.scene_number}`;
+              const { scene_number, ...sceneData } = scene;
+              scenesObject[sceneKey] = sceneData;
+          });
+      }
+      
+      const superPromptObject = {
+          master_prompt: prompt,
+          scenes: scenesObject
+      };
+      
+      return JSON.stringify(superPromptObject, null, 2);
+  };
+
+  const resetState = useCallback(() => {
     setFile(null);
     if (videoUrl) URL.revokeObjectURL(videoUrl);
     setVideoUrl('');
@@ -114,7 +138,7 @@ const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: Pro
     setStructuredJson('');
     setDetailedJson(null);
     setSuperStructuredJson('');
-    setCurrentJsonView('structured');
+    setCurrentJsonView('detailed');
     setError('');
     setIsCopied(false);
     setIsJsonCopied(false);
@@ -127,10 +151,28 @@ const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: Pro
     setRefineCamera('');
     setRefineLighting('');
     setNegativePrompt('');
-    setSuggestedNegativePrompts([]);
     setExtractedFrames([]);
-  };
+  }, [videoUrl]);
   
+  useEffect(() => {
+    if (selectedHistoryItem) {
+        // The timeout is a workaround for the state update race condition when view changes.
+        setTimeout(() => {
+            resetState(); // Clear any existing state first.
+            setAnalysisState(AnalysisState.SUCCESS);
+            setGeneratedPrompt(selectedHistoryItem.prompt);
+            setOriginalPrompt(selectedHistoryItem.prompt);
+            setDetailedJson(selectedHistoryItem.sceneAnalyses);
+            setStructuredJson(JSON.stringify(selectedHistoryItem.sceneAnalyses[0] || {}, null, 2));
+            setSuperStructuredJson(createSuperStructuredPrompt(selectedHistoryItem.prompt, selectedHistoryItem.sceneAnalyses));
+            setFile(null); 
+            setVideoUrl(selectedHistoryItem.thumbnail);
+            setVideoMeta({ duration: "N/A", resolution: "From History" });
+            onHistoryItemLoaded();
+        }, 0);
+    }
+  }, [selectedHistoryItem, onHistoryItemLoaded, resetState]);
+
   const handleFileSelect = async (selectedFile: File) => {
     resetState();
     
@@ -199,7 +241,7 @@ const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: Pro
         
         setProgress(30); // Move progress after extraction
         
-        const { prompt, analyses, jsonPrompt, suggestedNegativePrompts } = await generatePromptFromFrames(frameDataUrls, (msg) => {
+        const { prompt, analyses } = await generatePromptFromFrames(frameDataUrls, (msg) => {
             setProgressMessage(msg);
             setProgress(65); // Indicate we're in the middle of the main analysis step
         }, masterPrompt);
@@ -210,32 +252,17 @@ const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: Pro
         setGeneratedPrompt(prompt);
         setOriginalPrompt(prompt);
         setDetailedJson(analyses);
-        setStructuredJson(jsonPrompt);
-        setSuggestedNegativePrompts(suggestedNegativePrompts);
         
-        try {
-            const combinedJson = {
-                prompt_summary: JSON.parse(jsonPrompt),
-                frame_by_frame_analysis: analyses,
-            };
-            setSuperStructuredJson(JSON.stringify(combinedJson, null, 2));
-        } catch(e) {
-            console.error("Error creating super-structured JSON:", e);
-            const combinedJson = {
-                prompt_summary: { error: "Failed to parse structured prompt", raw: jsonPrompt },
-                frame_by_frame_analysis: analyses,
-            };
-            setSuperStructuredJson(JSON.stringify(combinedJson, null, 2));
-        }
+        setStructuredJson(JSON.stringify(analyses[0] || {}, null, 2));
+        setSuperStructuredJson(createSuperStructuredPrompt(prompt, analyses));
         
         onAddToHistory({
             id: Date.now().toString(),
             prompt,
-            frameAnalyses: analyses,
-            jsonPrompt,
+            sceneAnalyses: analyses,
+            jsonPrompt: JSON.stringify(analyses[0] || {}, null, 2),
             thumbnail: firstFrame,
             timestamp: new Date().toISOString(),
-            suggestedNegativePrompts,
         });
         
         setProgress(100);
@@ -253,30 +280,19 @@ const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: Pro
     setIsUpdatingJson(true);
     setError('');
     try {
-        const newStructuredJson = await structurePrompt(currentPrompt, masterPrompt);
-        setStructuredJson(newStructuredJson);
+        const newSceneAnalysesJson = await structurePrompt(currentPrompt, masterPrompt);
+        const newSceneAnalyses: SceneAnalysis[] = JSON.parse(newSceneAnalysesJson);
 
-        if (detailedJson) {
-            try {
-                const combinedJson = {
-                    prompt_summary: JSON.parse(newStructuredJson),
-                    frame_by_frame_analysis: detailedJson,
-                };
-                setSuperStructuredJson(JSON.stringify(combinedJson, null, 2));
-            } catch (e) {
-                 const combinedJson = {
-                    prompt_summary: { error: "Failed to parse updated structured prompt", raw: newStructuredJson },
-                    frame_by_frame_analysis: detailedJson,
-                };
-                setSuperStructuredJson(JSON.stringify(combinedJson, null, 2));
-            }
-        }
+        setDetailedJson(newSceneAnalyses);
+        setStructuredJson(JSON.stringify(newSceneAnalyses[0] || {}, null, 2));
+        setSuperStructuredJson(createSuperStructuredPrompt(currentPrompt, newSceneAnalyses));
+
     } catch (err) {
         setError(err instanceof Error ? `Failed to update JSON: ${err.message}` : 'An unknown error occurred.');
     } finally {
         setIsUpdatingJson(false);
     }
-  }, [detailedJson, masterPrompt]);
+  }, [masterPrompt]);
 
   useEffect(() => {
     // Automatically update JSONs when the prompt is changed by the user.
@@ -377,7 +393,6 @@ const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: Pro
       setGeneratedPrompt(template.prompt);
       setOriginalPrompt(template.prompt);
       setDetailedJson(null);
-      setSuggestedNegativePrompts([]);
       setFile(null);
       
       const placeholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" class="dark:bg-gray-800 bg-gray-200 text-gray-500 dark:text-gray-400"><rect width="1920" height="1080" fill="currentColor" fill-opacity="0.1"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="64" fill="currentColor">Prompt from Library</text></svg>`;
@@ -388,20 +403,12 @@ const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: Pro
       setProgress(50);
       setProgressMessage('Structuring prompt...');
 
-      let structured;
-      if (template.jsonPrompt) {
-        const parsed = JSON.parse(template.jsonPrompt);
-        structured = JSON.stringify(parsed, null, 2);
-      } else {
-        structured = await structurePrompt(template.prompt, masterPrompt);
-      }
-      setStructuredJson(structured);
-      
-      const combinedJson = {
-          prompt_summary: JSON.parse(structured),
-          frame_by_frame_analysis: "N/A: This prompt was selected from the library and not generated from a video.",
-      };
-      setSuperStructuredJson(JSON.stringify(combinedJson, null, 2));
+      const newSceneAnalysesJson = await structurePrompt(template.prompt, masterPrompt);
+      const newSceneAnalyses: SceneAnalysis[] = JSON.parse(newSceneAnalysesJson);
+
+      setDetailedJson(newSceneAnalyses);
+      setStructuredJson(JSON.stringify(newSceneAnalyses[0] || {}, null, 2));
+      setSuperStructuredJson(createSuperStructuredPrompt(template.prompt, newSceneAnalyses));
       
       setProgress(100);
       setAnalysisState(AnalysisState.SUCCESS);
@@ -524,7 +531,6 @@ const Uploader = ({ onAddToHistory, masterPrompt }: { onAddToHistory: (item: Pro
               refineInstruction={refineInstruction}
               negativePrompt={negativePrompt}
               setNegativePrompt={setNegativePrompt}
-              suggestedNegativePrompts={suggestedNegativePrompts}
               handlePromptChange={handlePromptChange}
               handleCopy={handleCopy}
               resetState={resetState}
@@ -674,6 +680,12 @@ const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<AppView>('main');
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [masterPrompt, setMasterPrompt] = useState<string>(masterPromptPresets[0].prompt);
+    const [selectedHistoryItem, setSelectedHistoryItem] = useState<PromptHistoryItem | null>(null);
+
+    const handleSelectHistoryItem = (item: PromptHistoryItem) => {
+        setSelectedHistoryItem(item);
+        setCurrentView('main');
+    };
 
     const handleAuthSuccess = () => {
         setIsAuthModalOpen(false);
@@ -690,6 +702,10 @@ const App: React.FC = () => {
         logout();
         setCurrentView('main');
     }
+
+    const onHistoryItemLoaded = useCallback(() => {
+        setSelectedHistoryItem(null);
+    }, []);
 
     useEffect(() => {
         const savedTheme = localStorage.getItem('theme') as Theme;
@@ -755,11 +771,16 @@ const App: React.FC = () => {
                     {currentView === 'main' && (
                         <div className="space-y-16 md:space-y-24">
                             <MasterPromptSection masterPrompt={masterPrompt} setMasterPrompt={setMasterPrompt} presets={masterPromptPresets} />
-                            <Uploader onAddToHistory={addToHistory} masterPrompt={masterPrompt} />
+                            <Uploader 
+                                onAddToHistory={addToHistory} 
+                                masterPrompt={masterPrompt} 
+                                selectedHistoryItem={selectedHistoryItem}
+                                onHistoryItemLoaded={onHistoryItemLoaded}
+                            />
                         </div>
                     )}
                     {currentView === 'profile' && <ProfilePage />}
-                    {currentView === 'history' && <HistoryPage history={userHistory} />}
+                    {currentView === 'history' && <HistoryPage history={userHistory} onSelectHistoryItem={handleSelectHistoryItem} />}
                 </main>
                 
                 <Footer onNavigate={setCurrentView} />
