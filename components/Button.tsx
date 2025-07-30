@@ -32,9 +32,10 @@ const BlurryButton: React.FC<BlurryButtonProps> = ({
     >
       <div
         className="
-          absolute -inset-0.5 bg-gradient-to-r from-purple-600 via-pink-500 to-indigo-500 
+          shimmer-bg absolute -inset-0.5 bg-gradient-to-r from-purple-600 via-pink-500 to-indigo-500 
           rounded-xl blur opacity-60 group-hover:opacity-100 
           transition-all duration-1000 group-hover:duration-200
+          bg-[length:200%_auto]
         "
       ></div>
       <span
