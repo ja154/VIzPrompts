@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 
 const GlowCard = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => {
@@ -19,8 +18,14 @@ const GlowCard = ({ children, className = '' }: { children: React.ReactNode, cla
   }, []);
 
   return (
-    <div ref={cardRef} className={`card-interactive-glow ${className}`}>
-      {children}
+    // The main container has the ref for the mousemove listener and all the user-provided classes.
+    <div ref={cardRef} className={`relative ${className}`}>
+      {/* Content is wrapped to give it a higher stacking context than the background. */}
+      <div className="relative z-10">
+        {children}
+      </div>
+      {/* Background/glow element is a sibling to the content wrapper, but positioned behind it. */}
+      <div className="card-interactive-glow-bg"></div>
     </div>
   );
 };
