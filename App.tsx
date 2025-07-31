@@ -218,60 +218,62 @@ const Uploader = ({ onAddToHistory, masterPrompt, selectedHistoryItem, onHistory
     if (!file) return;
 
     setAnalysisState(AnalysisState.PROCESSING);
-    setProgressMessage('Preparing media...');
+    setProgressMessage('Uploading and analyzing media...');
+    setProgress(0);
 
     try {
-        let frameDataUrls: string[] = [];
-        let firstFrame: string = '';
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('masterPrompt', masterPrompt);
 
-        if (file.type.startsWith('video/')) {
-            setProgressMessage('Extracting frames...');
-            frameDataUrls = await extractFramesFromVideo(file, 10, (prog) => setProgress(prog * 0.2)); // Extraction is 20% of progress
-            setExtractedFrames(frameDataUrls);
-        } else if (file.type.startsWith('image/')) {
-            const dataUrl = videoUrl;
-            setProgressMessage('Processing image...');
-            frameDataUrls = [dataUrl];
-            setExtractedFrames(frameDataUrls);
-            setProgress(20);
-        }
-        
-        if (frameDataUrls.length === 0) throw new Error("Could not extract frames or process the media.");
-        firstFrame = frameDataUrls[0];
-        
-        setProgress(30); // Move progress after extraction
-        
-        const { prompt, analyses } = await generatePromptFromFrames(frameDataUrls, (msg) => {
-            setProgressMessage(msg);
-            setProgress(65); // Indicate we're in the middle of the main analysis step
-        }, masterPrompt);
-        
-        setProgress(90);
-        setProgressMessage('Finalizing results...');
-        
-        setGeneratedPrompt(prompt);
-        setOriginalPrompt(prompt);
-        setDetailedJson(analyses);
-        
-        setStructuredJson(JSON.stringify(analyses[0] || {}, null, 2));
-        setSuperStructuredJson(createSuperStructuredPrompt(prompt, analyses));
-        
-        onAddToHistory({
-            id: Date.now().toString(),
-            prompt,
-            sceneAnalyses: analyses,
-            jsonPrompt: JSON.stringify(analyses[0] || {}, null, 2),
-            thumbnail: firstFrame,
-            timestamp: new Date().toISOString(),
-        });
-        
-        setProgress(100);
-        setAnalysisState(AnalysisState.SUCCESS);
+      // For local development, you might need to configure a proxy in vite.config.ts
+      // or use an absolute URL like 'http://localhost:8080/upload'.
+      // In production, this relative URL should work if the frontend and backend are on the same domain.
+      const response = await fetch('/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
-    } catch(err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-        setAnalysisState(AnalysisState.IDLE);
-        setFile(null); // Clear file on error
+      // Simulate progress as we wait for the server
+      let progressInterval = setInterval(() => {
+        setProgress(oldProgress => Math.min(oldProgress + 5, 80));
+      }, 500);
+
+      if (!response.ok) {
+        clearInterval(progressInterval);
+        const errorData = await response.json().catch(() => ({ error: `Server returned status ${response.status}` }));
+        throw new Error(errorData.error || `Upload failed with status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      clearInterval(progressInterval);
+
+      setProgress(90);
+      setProgressMessage('Finalizing results...');
+
+      setGeneratedPrompt(result.prompt);
+      setOriginalPrompt(result.prompt);
+      setDetailedJson(result.analyses);
+      setStructuredJson(JSON.stringify(result.analyses[0] || {}, null, 2));
+      setSuperStructuredJson(createSuperStructuredPrompt(result.prompt, result.analyses));
+
+      // The backend now handles processing, so we use the local preview URL for the history thumbnail.
+      onAddToHistory({
+          id: Date.now().toString(),
+          prompt: result.prompt,
+          sceneAnalyses: result.analyses,
+          jsonPrompt: JSON.stringify(result.analyses[0] || {}, null, 2),
+          thumbnail: videoUrl, // Use the existing preview URL
+          timestamp: new Date().toISOString(),
+      });
+
+      setProgress(100);
+      setAnalysisState(AnalysisState.SUCCESS);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred during upload.');
+      setAnalysisState(AnalysisState.IDLE);
+      // Do not clear the file on error, allowing the user to retry.
     }
   };
 
