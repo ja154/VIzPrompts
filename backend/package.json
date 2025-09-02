@@ -1,0 +1,20 @@
+{
+  "name": "visionary-prompts-backend",
+  "version": "1.0.0",
+  "description": "Backend for Visionary Prompts",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^7.11.0",
+    "@google/genai": "^1.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "fluent-ffmpeg": "^2.1.2",
+    "multer": "^1.4.5-lts.1",
+    "tmp": "^0.2.1"
+  }
+}
